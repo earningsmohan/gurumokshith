@@ -1,0 +1,51 @@
+setwd("F:\\DataMining_R\\3_LectureData\\section12")
+
+d=read.csv("JerusEmb_polarity.csv")
+
+head(d)
+
+prop.table(table(d$polarity))
+
+####clean data: remove @
+
+d$text = gsub("^@\\w+ *", "", d$text)
+head(d)
+
+# divide tweets in 2 dataframes according to positive or negative sentiment
+positive = subset(d, polarity == 'positive')
+negative = subset(d, polarity == 'negative')
+dim(positive); dim(negative)
+
+library(tm)
+library(wordcloud)
+library(SnowballC)
+
+
+#### for negative tweets
+
+corpus <- Corpus(VectorSource(negative$text))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, removeWords, stopwords('english'))
+corpus <- tm_map(corpus, stemDocument)
+
+myDtm <- DocumentTermMatrix(corpus)
+
+findFreqTerms(myDtm, lowfreq=10)
+
+sparse = removeSparseTerms(myDtm, 0.97) # keeps a matrix 97% sparse
+sparse = as.data.frame(as.matrix(sparse))
+colnames(sparse) = make.names(colnames(sparse))
+
+
+freqWords_neg = colSums(sparse)
+freqWords_neg = freqWords_neg[order(freqWords_neg, decreasing = T)]
+head(freqWords_neg)
+
+wordcloud(freq = as.vector(freqWords_neg), words = names(freqWords_neg),random.order = FALSE,
+          random.color = FALSE, colors = brewer.pal(9, 'Reds')[4:9])
+
+# find words correlated with the ones mentioned below (correlation at 70%)
+findAssocs(myDtm, c("jerusalem", 'palestinian'), .07)

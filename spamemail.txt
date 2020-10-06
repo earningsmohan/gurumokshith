@@ -1,0 +1,84 @@
+############# Model for Detecting Spam
+
+setwd("F:\\DataMining_R\\3_LectureData\\section14")
+
+
+library(caTools)
+library(e1071)
+library(rpart)
+library(rpart.plot)
+library(wordcloud)
+library(tm)
+library(SnowballC)
+library(ROCR)
+library(RColorBrewer)
+library(stringr)
+
+spam=read.csv("spam.csv",stringsAsFactors = F)
+
+head(spam)
+
+### ham means: non-spam
+### spam is spam
+
+# remove empty columns
+spam$X = NULL
+spam$X.1 <- NULL
+spam$X.2 <- NULL
+names(spam) <- c("label","text")
+levels(as.factor(spam$label))
+
+##### clean the text
+#tm
+corpus <- Corpus(VectorSource(spam$text))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, removeWords, stopwords('english'))
+corpus <- tm_map(corpus, stemDocument)
+
+## obtain document term matrix
+myDtm <- DocumentTermMatrix(corpus)
+findFreqTerms(myDtm, lowfreq=100)
+
+sparse = removeSparseTerms(myDtm, 0.995)
+sparse
+
+# Convert to a data frame
+
+emailSparse = as.data.frame(as.matrix(sparse))
+emailSparse$label=spam$label
+
+head(emailSparse)
+
+# Add dependent variable
+
+library(caTools)
+
+set.seed(123)
+
+n = nrow(emailSparse)
+idx <- sample(n, n * .75)
+train = emailSparse[idx,]
+test = emailSparse[-idx,]
+
+library(rpart)
+library(rpart.plot)
+
+
+emailCART = rpart(label ~ ., data=train, method="class")
+
+summary(emailCART)
+
+
+prp(emailCART)
+
+# Evaluate the performance of the model
+predictCART = predict(emailCART, newdata=test, type="class")
+
+table(test$label, predictCART)
+
+##overall accuracy
+
+(1193+119)/(1193+119+68+13)
